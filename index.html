@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Excel Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    .sheetResult {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Excel Viewer</h1>
+  <form id="uploadForm" enctype="multipart/form-data">
+    <label for="excelFile">Upload Excel File:</label>
+    <input type="file" id="excelFile" accept=".xls, .xlsx" required>
+    <br>
+    <label for="rowNumber">Enter Row Number:</label>
+    <input type="number" id="rowNumber" required>
+    <br>
+    <button type="button" onclick="displayRow()">Display Row</button>
+  </form>
+
+  <div id="sheetName"></div>
+  <div id="result"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.8/clipboard.min.js"></script>
+
+  <script>
+    function displayRow() {
+      // Clear previous result
+      document.getElementById('result').innerHTML = '';
+      document.getElementById('sheetName').innerHTML = '';
+
+      const fileInput = document.getElementById('excelFile');
+      const rowInput = document.getElementById('rowNumber');
+
+      const file = fileInput.files[0];
+      const rowNumber = parseInt(rowInput.value);
+
+      if (!file) {
+        alert('Please select an Excel file.');
+        return;
+      }
+
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+        const data = e.target.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName];
+          const range = XLSX.utils.decode_range(worksheet['!ref']);
+          const rowValues = [];
+
+          for (let col = range.s.c; col <= range.e.c; col++) {
+
+            if (col === 0 || col === 2 || col === 3) {
+              continue;
+            }
+            const cellValue = worksheet[XLSX.utils.encode_cell({ r: rowNumber - 1, c: col })];
+            rowValues.push(cellValue ? cellValue.v : '');
+          }
+
+          const resultDiv = document.getElementById('result');
+          resultDiv.innerHTML += `
+                        <div class="sheetResult" id="result-${sheetName}">
+                            Sheet: ${sheetName} <br>
+                            ${rowValues.join('<br>')} <br>
+                            <button class="copyButton" data-clipboard-text="${sheetName}: ${rowValues.join('\n')}">Copy ${sheetName}</button>
+                        </div>
+                    `;
+        });
+
+        // Initialize Clipboard.js once after the buttons are added
+        new ClipboardJS('.copyButton', {
+          text: function (trigger) {
+            return trigger.getAttribute('data-clipboard-text');
+          }
+        });
+      };
+
+      reader.readAsBinaryString(file);
+    }
+  </script>
+</body>
+
+</html>
